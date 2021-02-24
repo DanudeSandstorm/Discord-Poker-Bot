@@ -20,7 +20,7 @@ class Player:
 
     @property
     def name(self) -> str:
-        return self.user.name
+        return self.user.display_name
 
     # The maximum bet that the player can match
     @property

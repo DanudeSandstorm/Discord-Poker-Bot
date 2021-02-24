@@ -19,3 +19,5 @@ Click on the *click to reveal* button to get your bot's token. Next, either set 
 Now, go to [this page](https://finitereality.github.io/permissions-calculator/?v=0), select all the Non-Administrative permissions, enter the client id from the bot's application page, and then select one of the servers you own to add it that server.
 
 Finally, when you have done all that, run `bot.py`, and message `!newgame` in the server to start a new game of Texas Hold'em.
+
+You can provide `slim` as a command line argument to reduce the verbosity of messages.

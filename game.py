@@ -1,3 +1,4 @@
+import sys
 from collections import namedtuple
 from datetime import datetime, timedelta
 from enum import Enum
@@ -9,12 +10,16 @@ from player import Player
 from poker import best_possible_hand, Card, Deck
 from pot import PotManager
 
+Verbose = True
+if 'slim' in sys.argv:
+    Verbose = False
+
 Option = namedtuple("Option", ["description", "default"])
 
 GAME_OPTIONS: Dict[str, Option] = {
     "blind":  Option("The current price of the small blind", 5),
-    "buy-in": Option("The amount of money all players start out with", 500),
-    "raise-delay": Option("The number of minutes before blinds double",  30),
+    "buy-in": Option("The amount of money all players start out with", 1000),
+    "raise-delay": Option("The number of minutes before blinds double",  0),
     "starting-blind": Option("The starting price of the small blind", 5)
 }
 
@@ -71,10 +76,32 @@ class Game:
         self.players.append(Player(user))
         return True
 
+
+    def end_game(self) -> List[str]:
+        messages = ["Game has been ended."]
+        for player in self.players:
+            messages.append(f"{player.name} has ${player.balance}.")
+        
+        self.new_game()
+        return messages
+
+    # A player can increase their chips or buy into an already started game
+    def buy_in(self, user: discord.User) -> List[str]:
+        increase = self.options["buy-in"]
+        for player in self.players:
+            if player.user.id == user.id:
+                player.balance += increase
+            return [f"Increased {player.name}'s balance by {increase}. New balance is {player.balance}."]
+
+        self.players.append(Player(user))
+        player = self.players[-1]
+        player.balance += self.options["buy-in"]
+        return [f"{player.name} has bought into the game with {increase} chips."]
+
     # Returns whether a user is playing in the game
     def is_player(self, user: discord.User) -> bool:
         for player in self.players:
-            if player.user == user:
+            if player.user.id == user.id:
                 return True
         return False
 
@@ -103,8 +130,9 @@ class Game:
     # Returns some messages to update the players on the state of the game
     def status_between_rounds(self) -> List[str]:
         messages = []
-        for player in self.players:
-            messages.append(f"{player.user.name} has ${player.balance}.")
+        if Verbose:
+            for player in self.players:
+                messages.append(f"{player.name} has ${player.balance}.")
         messages.append(f"{self.dealer.user.mention} is the current dealer. "
                         "Message !deal to deal when you're ready.")
         return messages
@@ -222,7 +250,7 @@ class Game:
     # Returns messages telling the current player their options
     def cur_options(self) -> List[str]:
         messages = [f"It is {self.current_player.user.mention}'s turn. "
-                    f"{self.current_player.user.name} currently has "
+                    f"{self.current_player.name} currently has "
                     f"${self.current_player.balance}. "
                     f"The pot is currently ${self.pot.value}."]
         if self.pot.cur_bet > 0:
@@ -231,12 +259,13 @@ class Game:
                             f"${self.current_player.cur_bet}.")
         else:
             messages.append(f"The current bet to meet is ${self.cur_bet}.")
-        if self.current_player.cur_bet == self.cur_bet:
-            messages.append("Message !check, !raise or !fold.")
-        elif self.current_player.max_bet > self.cur_bet:
-            messages.append("Message !call, !raise or !fold.")
-        else:
-            messages.append("Message !all-in or !fold.")
+        if Verbose:
+            if self.current_player.cur_bet == self.cur_bet:
+                messages.append("Message !check, !raise or !fold.")
+            elif self.current_player.max_bet > self.cur_bet:
+                messages.append("Message !call, !raise or !fold.")
+            else:
+                messages.append("Message !all-in or !fold.")
         return messages
 
     # Advances to the next round of betting (or to the showdown), returning a
@@ -306,7 +335,7 @@ class Game:
                 self.players.pop(i)
                 if len(self.players) == 1:
                     # There's only one player, so they win
-                    messages.append(f"{self.players[0].user.name} wins the game! "
+                    messages.append(f"{self.players[0].name} wins the game! "
                                     "Congratulations!")
                     self.state = GameState.NO_GAME
                     return messages
@@ -322,12 +351,13 @@ class Game:
     # Make the current player check, betting no additional money
     def check(self) -> List[str]:
         self.current_player.placed_bet = True
-        return [f"{self.current_player.name} checks."] + self.next_turn()
+        messages = [f"{self.current_player.name} checks."] if Verbose else [""]
+        return messages + self.next_turn()
 
     # Has the current player raise a certain amount
     def raise_bet(self, amount: int) -> List[str]:
         self.pot.handle_raise(self.current_player, amount)
-        messages = [f"{self.current_player.name} raises by ${amount}."]
+        messages = [f"{self.current_player.name} raises by ${amount}."] if Verbose else [""]
         if self.current_player.balance == 0:
             messages.append(f"{self.current_player.name} is all in!")
             self.leave_hand(self.current_player)
@@ -337,7 +367,7 @@ class Game:
     # Has the current player match the current bet
     def call(self) -> List[str]:
         self.pot.handle_call(self.current_player)
-        messages = [f"{self.current_player.name} calls."]
+        messages = [f"{self.current_player.name} calls."] if Verbose else [""]
         if self.current_player.balance == 0:
             messages.append(f"{self.current_player.name} is all in!")
             self.leave_hand(self.current_player)
@@ -352,7 +382,7 @@ class Game:
 
     # Has the current player fold their hand
     def fold(self) -> List[str]:
-        messages = [f"{self.current_player.name} has folded."]
+        messages = [f"{self.current_player.name} has folded."] if Verbose else [""]
         self.pot.handle_fold(self.current_player)
         self.leave_hand(self.current_player)
 
