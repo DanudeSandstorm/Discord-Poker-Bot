@@ -291,6 +291,17 @@ commands: Dict[str, Command] = {
                         all_in),
 }
 
+short: Dict[str, str] = {
+    '!allin': '!all-in',
+    '!bet': '!raise',
+    '!b': '!raise',
+    '!c': '!call',
+    '!d': '!deal',
+    '!f': '!fold',
+    '!r': '!raise',
+    '!x': '!check',
+}
+
 @client.event
 async def on_ready():
     print("Poker bot ready!")
@@ -310,6 +321,8 @@ async def on_message(message):
     command = message.content.split()[0]
     if command[0] == '!':
         channel = client.get_channel(message.channel.id)
+        if command in short:
+            command = short[command]
         if command not in commands:
             await channel.send(f"{message.content} is not a valid command. "
                                  "Message !help to see the list of commands.")
