@@ -105,7 +105,7 @@ class Game:
         messages = []
         for player in self.players:
             messages.append(f"{player.user.name} has ${player.balance}.")
-        messages.append(f"{self.dealer.user.name} is the current dealer. "
+        messages.append(f"{self.dealer.user.mention} is the current dealer. "
                         "Message !deal to deal when you're ready.")
         return messages
 
@@ -221,7 +221,7 @@ class Game:
 
     # Returns messages telling the current player their options
     def cur_options(self) -> List[str]:
-        messages = [f"It is {self.current_player.name}'s turn. "
+        messages = [f"It is {self.current_player.user.mention}'s turn. "
                     f"{self.current_player.user.name} currently has "
                     f"${self.current_player.balance}. "
                     f"The pot is currently ${self.pot.value}."]
@@ -376,5 +376,5 @@ class Game:
     # Send a message to each player, telling them what their hole cards are
     async def tell_hands(self, client: discord.Client):
         for player in self.players:
-            await client.send_message(player.user, str(player.cards[0]) + "  "
-                                                   + str(player.cards[1]))
+            user = await client.fetch_user(player.user.id)
+            await user.send(str(player.cards[0]) + "  " + str(player.cards[1]))

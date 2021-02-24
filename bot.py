@@ -6,10 +6,19 @@ import discord
 
 from game import Game, GAME_OPTIONS, GameState
 
+
 POKER_BOT_TOKEN = os.getenv("POKER_BOT_TOKEN")
 
+if POKER_BOT_TOKEN is None:
+    try:
+        with open('key.txt', 'r') as f:
+            contents = f.read()
+            POKER_BOT_TOKEN = contents.strip()
+    except IOError:
+        print("Key not found in env or key.txt file")
+
 client = discord.Client()
-games: Dict[discord.Channel, Game] = {}
+games: Dict[discord.abc.GuildChannel, Game] = {}
 
 # Starts a new game if one hasn't been started yet, returning an error message
 # if a game has already been started. Returns the messages the bot should say
@@ -295,14 +304,14 @@ async def on_message(message):
     if len(message.content.split()) == 0:
         return
     # Ignore private messages
-    if message.channel.is_private:
+    if isinstance(message.channel, discord.channel.DMChannel):
         return
 
     command = message.content.split()[0]
     if command[0] == '!':
+        channel = client.get_channel(message.channel.id)
         if command not in commands:
-            await client.send_message(
-                message.channel, f"{message.content} is not a valid command. "
+            await channel.send(f"{message.content} is not a valid command. "
                                  "Message !help to see the list of commands.")
             return
 
@@ -316,6 +325,6 @@ async def on_message(message):
         if command == '!deal' and messages[0] == 'The hands have been dealt!':
             await game.tell_hands(client)
 
-        await client.send_message(message.channel, '\n'.join(messages))
+        await channel.send('\n'.join(messages))
 
 client.run(POKER_BOT_TOKEN)
